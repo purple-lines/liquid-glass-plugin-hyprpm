@@ -1,3 +1,6 @@
+#version 300 es
+precision highp float;
+
 /*
  * Apple-style Liquid Glass Fragment Shader
  * 
@@ -8,9 +11,6 @@
  * 4. Specular highlights (sharp light reflections)
  * 5. Subtle interior blur for glass thickness
  */
-
-#version 320 es
-precision highp float;
 
 // Uniforms
 uniform sampler2D tex;
@@ -34,7 +34,6 @@ layout(location = 0) out vec4 fragColor;
 
 // Constants
 const float PI = 3.14159265359;
-const int BLUR_SAMPLES = 13;
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -84,37 +83,27 @@ vec2 getRefractionOffset(vec2 uv, float edgeMask) {
 // BLUR FUNCTION - Gaussian approximation
 // ============================================================================
 
-vec3 gaussianBlur(sampler2D tex, vec2 uv, vec2 texelSize, float strength) {
-    vec3 result = vec3(0.0);
-    float total = 0.0;
+vec3 gaussianBlur(vec2 uv, vec2 texelSize, float strength) {
+    // 9-tap Gaussian blur
+    vec3 result = texture(tex, uv).rgb * 0.1633;
     
-    // 13-tap Gaussian kernel
-    float kernel[13];
-    kernel[0] = 0.000229;
-    kernel[1] = 0.005977;
-    kernel[2] = 0.060598;
-    kernel[3] = 0.241732;
-    kernel[4] = 0.382928;
-    kernel[5] = 0.241732;
-    kernel[6] = 0.060598;
-    kernel[7] = 0.005977;
-    kernel[8] = 0.000229;
+    vec2 off1 = texelSize * strength;
+    vec2 off2 = texelSize * strength * 2.0;
     
-    // Horizontal + Vertical combined (approximation)
-    for (int i = -4; i <= 4; i++) {
-        for (int j = -4; j <= 4; j++) {
-            vec2 offset = vec2(float(i), float(j)) * texelSize * strength;
-            float weight = kernel[i + 4] * kernel[j + 4];
-            result += texture(tex, uv + offset).rgb * weight;
-            total += weight;
-        }
-    }
+    result += texture(tex, uv + vec2(off1.x, 0.0)).rgb * 0.1531;
+    result += texture(tex, uv - vec2(off1.x, 0.0)).rgb * 0.1531;
+    result += texture(tex, uv + vec2(0.0, off1.y)).rgb * 0.1531;
+    result += texture(tex, uv - vec2(0.0, off1.y)).rgb * 0.1531;
+    result += texture(tex, uv + vec2(off2.x, 0.0)).rgb * 0.0561;
+    result += texture(tex, uv - vec2(off2.x, 0.0)).rgb * 0.0561;
+    result += texture(tex, uv + vec2(0.0, off2.y)).rgb * 0.0561;
+    result += texture(tex, uv - vec2(0.0, off2.y)).rgb * 0.0561;
     
-    return result / total;
+    return result;
 }
 
 // Simpler 5-tap blur for performance
-vec3 fastBlur(sampler2D tex, vec2 uv, vec2 texelSize, float strength) {
+vec3 fastBlur(vec2 uv, vec2 texelSize, float strength) {
     vec3 result = texture(tex, uv).rgb * 0.2270270270;
     
     vec2 off1 = vec2(1.3846153846) * texelSize * strength;
@@ -132,7 +121,7 @@ vec3 fastBlur(sampler2D tex, vec2 uv, vec2 texelSize, float strength) {
 // CHROMATIC ABERRATION
 // ============================================================================
 
-vec3 chromaticSample(sampler2D tex, vec2 uv, vec2 texelSize, float edgeMask) {
+vec3 chromaticSample(vec2 uv, vec2 texelSize, float edgeMask) {
     // Different refraction amounts for each color channel
     // Red bends least, blue bends most (like real glass)
     float caAmount = chromaticAberration * edgeMask;
@@ -224,12 +213,12 @@ void main() {
     // ========================================
     // More blur at center, less at edges (like thick glass)
     float blurAmount = blurStrength * (1.0 - edgeMask * 0.5);
-    vec3 blurredColor = fastBlur(tex, refractedUV, texelSize, blurAmount);
+    vec3 blurredColor = fastBlur(refractedUV, texelSize, blurAmount);
     
     // ========================================
     // 3. CHROMATIC ABERRATION - Color fringing at edges
     // ========================================
-    vec3 caColor = chromaticSample(tex, refractedUV, texelSize, edgeMask);
+    vec3 caColor = chromaticSample(refractedUV, texelSize, edgeMask);
     
     // Blend between blurred and chromatic based on edge proximity
     vec3 glassColor = mix(blurredColor, caColor, edgeMask * 0.7);
