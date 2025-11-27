@@ -34,30 +34,59 @@ layout(location = 0) out vec4 fragColor;
 
 // Constants
 const float PI = 3.14159265359;
+const float AA_EDGE = 0.002; // Anti-aliasing edge softness
 
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
-// Compute signed distance to rounded rectangle
-float roundedBoxSDF(vec2 p, vec2 size, float r) {
-    vec2 q = abs(p) - size + r;
+// Compute signed distance to rounded rectangle (in UV space)
+float roundedBoxSDF(vec2 p, vec2 halfSize, float r) {
+    vec2 q = abs(p) - halfSize + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+}
+
+// Get alpha mask for rounded corners
+float getRoundedAlpha(vec2 uv) {
+    vec2 center = vec2(0.5);
+    vec2 pos = uv - center;
+    
+    // Convert radius from pixels to UV space, accounting for aspect ratio
+    float aspectRatio = fullSize.x / fullSize.y;
+    vec2 scaledPos = pos * vec2(aspectRatio, 1.0);
+    
+    // Half size in UV space
+    vec2 halfSize = vec2(0.5 * aspectRatio, 0.5);
+    
+    // Radius in UV space (approximate)
+    float uvRadius = radius / fullSize.y;
+    
+    float dist = roundedBoxSDF(scaledPos, halfSize, uvRadius);
+    
+    // Smooth edge for anti-aliasing
+    return 1.0 - smoothstep(-AA_EDGE, AA_EDGE, dist);
 }
 
 // Smooth edge mask with configurable falloff
 float getEdgeMask(vec2 uv, float thickness) {
     vec2 center = vec2(0.5);
     vec2 pos = uv - center;
-    vec2 size = vec2(0.5);
     
-    // Compute distance from edge
-    float cornerRadius = radius / max(fullSize.x, fullSize.y) * 2.0;
-    float dist = roundedBoxSDF(pos, size - thickness, cornerRadius);
+    // Account for aspect ratio
+    float aspectRatio = fullSize.x / fullSize.y;
+    vec2 scaledPos = pos * vec2(aspectRatio, 1.0);
+    vec2 halfSize = vec2(0.5 * aspectRatio, 0.5);
+    
+    // Radius in UV space
+    float uvRadius = radius / fullSize.y;
+    
+    // Compute distance from inner edge
+    float innerThickness = thickness * min(aspectRatio, 1.0);
+    float dist = roundedBoxSDF(scaledPos, halfSize - innerThickness, max(uvRadius - innerThickness, 0.0));
     
     // Create smooth gradient from edge to center
-    float edgeFactor = smoothstep(-thickness, 0.0, dist);
-    return edgeFactor;
+    float edgeFactor = smoothstep(-thickness * 0.5, thickness * 0.5, dist);
+    return clamp(edgeFactor, 0.0, 1.0);
 }
 
 // Generate refraction displacement based on edge proximity
@@ -102,17 +131,17 @@ vec3 gaussianBlur(vec2 uv, vec2 texelSize, float strength) {
     return result;
 }
 
-// Simpler 5-tap blur for performance
+// Simpler 5-tap blur for performance with bounds clamping
 vec3 fastBlur(vec2 uv, vec2 texelSize, float strength) {
-    vec3 result = texture(tex, uv).rgb * 0.2270270270;
-    
+    // Clamp all samples to valid UV range to prevent flickering
     vec2 off1 = vec2(1.3846153846) * texelSize * strength;
     vec2 off2 = vec2(3.2307692308) * texelSize * strength;
     
-    result += texture(tex, uv + off1).rgb * 0.3162162162;
-    result += texture(tex, uv - off1).rgb * 0.3162162162;
-    result += texture(tex, uv + off2).rgb * 0.0702702703;
-    result += texture(tex, uv - off2).rgb * 0.0702702703;
+    vec3 result = texture(tex, clamp(uv, 0.0, 1.0)).rgb * 0.2270270270;
+    result += texture(tex, clamp(uv + off1, 0.0, 1.0)).rgb * 0.3162162162;
+    result += texture(tex, clamp(uv - off1, 0.0, 1.0)).rgb * 0.3162162162;
+    result += texture(tex, clamp(uv + off2, 0.0, 1.0)).rgb * 0.0702702703;
+    result += texture(tex, clamp(uv - off2, 0.0, 1.0)).rgb * 0.0702702703;
     
     return result;
 }
@@ -133,9 +162,10 @@ vec3 chromaticSample(vec2 uv, vec2 texelSize, float edgeMask) {
     vec2 offsetG = vec2(0.0);  // Green is reference
     vec2 offsetB = dir * caAmount * 1.2;
     
-    float r = texture(tex, uv + offsetR).r;
-    float g = texture(tex, uv + offsetG).g;
-    float b = texture(tex, uv + offsetB).b;
+    // Clamp all samples to prevent edge artifacts
+    float r = texture(tex, clamp(uv + offsetR, 0.0, 1.0)).r;
+    float g = texture(tex, clamp(uv + offsetG, 0.0, 1.0)).g;
+    float b = texture(tex, clamp(uv + offsetB, 0.0, 1.0)).b;
     
     return vec3(r, g, b);
 }
@@ -196,6 +226,12 @@ void main() {
     vec2 uv = v_texcoord;
     vec2 texelSize = 1.0 / fullSize;
     
+    // Get rounded corner alpha - discard pixels outside rounded rect
+    float cornerAlpha = getRoundedAlpha(uv);
+    if (cornerAlpha < 0.001) {
+        discard;
+    }
+    
     // Calculate edge mask for effects
     float edgeMask = getEdgeMask(uv, edgeThickness);
     
@@ -253,6 +289,6 @@ void main() {
     float luminance = dot(finalColor, vec3(0.299, 0.587, 0.114));
     finalColor = mix(vec3(luminance), finalColor, 0.9);
     
-    // Output with glass opacity
-    fragColor = vec4(finalColor, glassOpacity);
+    // Output with glass opacity and rounded corner alpha
+    fragColor = vec4(finalColor, glassOpacity * cornerAlpha);
 }
