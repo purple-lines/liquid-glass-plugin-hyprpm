@@ -28,6 +28,9 @@ uniform float fresnelStrength;     // Edge glow intensity (0.0 - 1.0)
 uniform float specularStrength;    // Highlight brightness (0.0 - 1.0)
 uniform float glassOpacity;        // Overall glass opacity (0.0 - 1.0)
 uniform float edgeThickness;       // How thick the refractive edge is (0.0 - 0.3)
+uniform float redTint;             // The glass red tint 0-255
+uniform float greenTint;           // The glass green tint 0-255
+uniform float blueTint;            // The glass blue tint 0-255
 
 in vec2 v_texcoord;
 layout(location = 0) out vec4 fragColor;
@@ -276,7 +279,7 @@ void main() {
     // ========================================
     
     // Base glass color with slight tint (Apple uses a subtle blue-ish tint)
-    vec3 glassTint = vec3(0.95, 0.97, 1.0);
+    vec3 glassTint = vec3(redTint, greenTint, blueTint);
     vec3 finalColor = glassColor * glassTint;
     
     // Add Fresnel glow (additive)

@@ -22,6 +22,9 @@ enum eLiquidGlassUniforms {
     LG_UNIFORM_SPECULAR_STRENGTH,
     LG_UNIFORM_GLASS_OPACITY,
     LG_UNIFORM_EDGE_THICKNESS,
+    LG_UNIFORM_RED_TINT,
+    LG_UNIFORM_GREEN_TINT,
+    LG_UNIFORM_BLUE_TINT,
     LG_UNIFORM_FULL_SIZE_UNTRANSFORMED,
 };
 
@@ -39,6 +42,9 @@ struct SGlobalState {
     GLint locSpecularStrength      = -1;
     GLint locGlassOpacity          = -1;
     GLint locEdgeThickness         = -1;
+    GLint locRedTint               = -1;
+    GLint locGreenTint             = -1;
+    GLint locBlueTint              = -1;
     GLint locFullSizeUntransformed = -1;
 };
 

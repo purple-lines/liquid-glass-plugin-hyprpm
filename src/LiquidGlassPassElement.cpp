@@ -2,7 +2,7 @@
 #include "LiquidGlassDecoration.hpp"
 #include "globals.hpp"
 
-#include <hyprland/src/desktop/Window.hpp>
+#include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 
 CLiquidGlassPassElement::CLiquidGlassPassElement(const SLiquidGlassData& data) 

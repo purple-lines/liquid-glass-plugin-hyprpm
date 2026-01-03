@@ -71,6 +71,9 @@ static void initShader() {
     g_pGlobalState->locSpecularStrength      = glGetUniformLocation(prog, "specularStrength");
     g_pGlobalState->locGlassOpacity          = glGetUniformLocation(prog, "glassOpacity");
     g_pGlobalState->locEdgeThickness         = glGetUniformLocation(prog, "edgeThickness");
+    g_pGlobalState->locRedTint               = glGetUniformLocation(prog, "redTint");
+    g_pGlobalState->locGreenTint             = glGetUniformLocation(prog, "greenTint");
+    g_pGlobalState->locBlueTint              = glGetUniformLocation(prog, "blueTint");
     g_pGlobalState->locFullSizeUntransformed = glGetUniformLocation(prog, "fullSizeUntransformed");
 
     // Create VAO
@@ -175,6 +178,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     
     // Edge thickness: how wide the refractive edge is
     HyprlandAPI::addConfigValue(PHANDLE, "plugin:liquid-glass:edge_thickness", Hyprlang::FLOAT{0.15});
+    
+    // Red tint: apple blue tint default
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:liquid-glass:red_tint", Hyprlang::FLOAT{0.95});
+    
+    // Green tint: apple blue tint default
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:liquid-glass:green_tint", Hyprlang::FLOAT{0.97});
+    
+    // Red tint: apple blue tint default
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:liquid-glass:blue_tint", Hyprlang::FLOAT{1.0});
 
     // Apply to existing windows
     for (auto& w : g_pCompositor->m_windows) {

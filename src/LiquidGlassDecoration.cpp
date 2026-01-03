@@ -4,7 +4,7 @@
 
 #include <GLES3/gl32.h>
 #include <hyprland/src/Compositor.hpp>
-#include <hyprland/src/desktop/Window.hpp>
+#include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/render/OpenGL.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprutils/math/Misc.hpp>
@@ -19,7 +19,7 @@
 CLiquidGlassDecoration::CLiquidGlassDecoration(PHLWINDOW pWindow)
     : IHyprWindowDecoration(pWindow), m_pWindow(pWindow) {
     // Disable Hyprland's built-in blur - we handle it ourselves
-    pWindow->m_windowData.noBlur = true;
+    // pWindow->m_windowData.noBlur = true;
 }
 
 // ============================================================================
@@ -110,10 +110,13 @@ void CLiquidGlassDecoration::applyLiquidGlassEffect(CFramebuffer& sourceFB, CFra
     static auto* const PSPECULAR   = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:liquid-glass:specular_strength")->getDataStaticPtr();
     static auto* const POPACITY    = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:liquid-glass:glass_opacity")->getDataStaticPtr();
     static auto* const PEDGE       = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:liquid-glass:edge_thickness")->getDataStaticPtr();
+    static auto* const REDTINT     = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:liquid-glass:red_tint")->getDataStaticPtr();
+    static auto* const GREENTINT   = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:liquid-glass:green_tint")->getDataStaticPtr();
+    static auto* const BLUETINT    = (Hyprlang::FLOAT* const*)HyprlandAPI::getConfigValue(PHANDLE, "plugin:liquid-glass:blue_tint")->getDataStaticPtr();
 
     // Calculate transformation matrix
-    const auto TR = wlTransformToHyprutils(
-        invertTransform(g_pHyprOpenGL->m_renderData.pMonitor->m_transform));
+    const auto TR = Math::wlTransformToHyprutils(
+        Math::invertTransform(g_pHyprOpenGL->m_renderData.pMonitor->m_transform));
 
     Mat3x3 matrix = g_pHyprOpenGL->m_renderData.monitorProjection.projectBox(rawBox, TR, rawBox.rot);
     Mat3x3 glMatrix = g_pHyprOpenGL->m_renderData.projection.copy().multiply(matrix);
@@ -154,6 +157,9 @@ void CLiquidGlassDecoration::applyLiquidGlassEffect(CFramebuffer& sourceFB, CFra
     glUniform1f(g_pGlobalState->locSpecularStrength, static_cast<float>(**PSPECULAR));
     glUniform1f(g_pGlobalState->locGlassOpacity, static_cast<float>(**POPACITY) * windowAlpha);
     glUniform1f(g_pGlobalState->locEdgeThickness, static_cast<float>(**PEDGE));
+    glUniform1f(g_pGlobalState->locRedTint, static_cast<float>(**REDTINT));
+    glUniform1f(g_pGlobalState->locGreenTint, static_cast<float>(**GREENTINT));
+    glUniform1f(g_pGlobalState->locBlueTint, static_cast<float>(**BLUETINT));
     
     // Untransformed size for proper calculations
     glUniform2f(g_pGlobalState->locFullSizeUntransformed, 
@@ -197,8 +203,8 @@ void CLiquidGlassDecoration::renderPass(PHLMONITOR pMonitor, const float& a) {
     CBox transformBox = wlrbox;
 
     // Apply monitor transform
-    const auto TR = wlTransformToHyprutils(
-        invertTransform(g_pHyprOpenGL->m_renderData.pMonitor->m_transform));
+    const auto TR = Math::wlTransformToHyprutils(
+        Math::invertTransform(g_pHyprOpenGL->m_renderData.pMonitor->m_transform));
     transformBox.transform(TR, 
         g_pHyprOpenGL->m_renderData.pMonitor->m_transformedSize.x,
         g_pHyprOpenGL->m_renderData.pMonitor->m_transformedSize.y);
